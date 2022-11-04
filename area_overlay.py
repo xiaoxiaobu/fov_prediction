@@ -34,7 +34,7 @@ def cal_angle(v1,v2):
     v2 = np.array([v2[2],v2[0],v2[1]])
     assert((np.linalg.norm(v1)!=0) and (np.linalg.norm(v2)!=0))
     dot_product = np.dot(v1,v2)
-    arccos = np.arccos(dot_product/(np.linalg.norm(v1))*(np.linalg.norm(v2)))
+    arccos = np.arccos(dot_product/((np.linalg.norm(v1))*(np.linalg.norm(v2))))
     return arccos
 
 def Bucketize(data,interval):
@@ -78,7 +78,8 @@ endtime = 70
 
 directoryNames = os.listdir(path)
 
-vids = [10,12,24,14]
+vids = [f for f in range(1,31) if(f<15 or f>16)]
+print(vids)
 viewers = dict()
 
 idx = 0
@@ -115,8 +116,8 @@ for k in viewers:
     area_between_user = []
     dis_between_user = []
     for frame in range(0,29):  #第一个用户的所有帧
-        vp1 = viewer[user*30+frame,5:8]
-        vp2 = viewer[user*30+frame+1,5:8]
+        vp1 = video[user*30+frame,5:8]
+        vp2 = video[user*30+frame+1,5:8]
         theta = cal_angle(vp1,vp2)
         area = AreaOfCapsIntersection(1,theta)  # intersection area
         [lat1,lon1,r] = vec2Ang(vp1)
@@ -131,25 +132,35 @@ for k in viewers:
     all_video_dis[k] = np.array(dis_between_user)
 
 
-x = [x for x in range(1,30)]
-fig = plt.figure()
-ax1 = fig.add_subplot(111)
-ax2 = ax1.twinx()
+for k in viewers:
+    area_seq = all_video_area[k]
+    dis_seq = all_video_dis[k]
+    df = pd.DataFrame({'x':area_seq,'y':dis_seq})
 
-print(area_between_user)
-print(dis_between_user)
-ax1.plot(x,area_between_user,'g-',label='area overlap')
-ax2.plot(x,dis_between_user,'r--',label='distance')
 
-ax1.set_xlabel('users')
-ax1.set_ylabel('area overlap')
-ax2.set_ylabel('distance')
+    print(df.x.corr(df.y))
 
-ax1.set_ylim(0,1)
-ax2.set_ylim(0.50,0)
-fig.legend(loc='upper right',bbox_to_anchor=(1,1),bbox_transform=ax1.transAxes)
-plt.grid(1)
-plt.show()
+
+
+# x = [x for x in range(1,30)]
+# fig = plt.figure()
+# ax1 = fig.add_subplot(111)
+# ax2 = ax1.twinx()
+
+# print(area_between_user)
+# print(dis_between_user)
+# ax1.plot(x,area_between_user,'g-',label='area overlap')
+# ax2.plot(x,dis_between_user,'r--',label='distance')
+
+# ax1.set_xlabel('users')
+# ax1.set_ylabel('area overlap')
+# ax2.set_ylabel('distance')
+
+# ax1.set_ylim(0,1)
+# ax2.set_ylim(0.50,0)
+# fig.legend(loc='upper right',bbox_to_anchor=(1,1),bbox_transform=ax1.transAxes)
+# plt.grid(1)
+# plt.show()
 
 
 
