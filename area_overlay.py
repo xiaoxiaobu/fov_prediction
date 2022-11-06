@@ -6,7 +6,8 @@ import numpy.matlib
 
 import pandas as pd
 import matplotlib.pyplot as plt
-
+from torch import view_as_real
+import math
 
 
 # Here is our main process for computing the area of 
@@ -14,11 +15,23 @@ import matplotlib.pyplot as plt
 # distance of the radius of each cap's respective base. r is the sphere's
 # radius. theta is the angular separation between the caps (in radians).
 def AreaOfCapsIntersection(r, theta):
-    a = np.deg2rad(50)       #50 degree fov for calculate
-    b = np.deg2rad(50)       #50 degree fov for calculate
+    a = np.deg2rad(60)       #50 degree fov for calculate
+    b = np.deg2rad(60)       #50 degree fov for calculate
     c = theta
     s = (a + b + c) / 2
-    k = np.sqrt((np.sin(s - a) * np.sin(s - b) * np.sin(s - c) / np.sin(s)))
+
+    if (np.sin(s - a) * np.sin(s - b) * np.sin(s - c) / (np.sin(s))) < 0:
+        print(a)
+        print(b)
+        print(c)
+        print(s)
+
+        print(np.sin(s - a))
+        print(np.sin(s - b))
+        print(np.sin(s - c))
+        print(np.sin(s))
+        print('-----------------')
+    k = np.sqrt((np.sin(s - a) * np.sin(s - b) * np.sin(s - c) / (np.sin(s))))
     A = 2 * np.arctan(k / np.sin(s - a))
     B = 2 * np.arctan(k / np.sin(s - b))
     C = 2 * np.arctan(k / np.sin(s - c))
@@ -78,48 +91,42 @@ endtime = 70
 
 directoryNames = os.listdir(path)
 
-vids = [f for f in range(1,31) if(f<15 or f>16)]
-print(vids)
-viewers = dict()
+videos = [12,14,29,20]
+
+result = dict()
 
 idx = 0
-
-for vid in vids: #遍历视频
+for vid in videos:
     viewer = []
-    for f in directoryNames: # 遍历所有用户
+    for f in directoryNames:
         file = os.path.join(path,f,f'{f}_{vid}.csv')
         if(os.path.isfile(file)==False):
             continue
         data = np.loadtxt(file,delimiter=',')
         i = 0
-        for j in range(1,31): #遍历每个用户的每帧
-            while(data[i,0]<1/29*j):
-                i+=1
-            # print(i)
-            viewer.append(data[i,:])
-
-            idx = idx+1
-
+        while(data[i,0]<1/29*20):  #No.20 frame
+            i+=1
+        viewer.append(data[i,:])
+        idx = idx+1
     viewer = np.array(viewer)
+    result[f'{vid}'] = viewer
+
+area_all_video = dict()
+dis_all_video = dict()    
+
+for k in result:
+    viewer = result[k]
     print(viewer.shape)
-    viewers[f'{vid}'] = viewer
 
-all_video_area = dict()
-all_video_dis = dict()
 
-user = 0   #规定遍历第几个用户的30帧
-
-for k in viewers:
-    # print(k)
-    video = viewers[k]
-    
+    user1 = 0
     area_between_user = []
     dis_between_user = []
-    for frame in range(0,29):  #第一个用户的所有帧
-        vp1 = video[user*30+frame,5:8]
-        vp2 = video[user*30+frame+1,5:8]
+    for user2 in range(1,30):
+        vp1 = viewer[user1,5:8]
+        vp2 = viewer[user2,5:8]
         theta = cal_angle(vp1,vp2)
-        area = AreaOfCapsIntersection(1,theta)  # intersection area
+        area = AreaOfCapsIntersection(1,abs(theta))  # intersection area
         [lat1,lon1,r] = vec2Ang(vp1)
         [lat2,lon2,r] = vec2Ang(vp2)
 
@@ -127,17 +134,14 @@ for k in viewers:
 
         area_between_user.append(area/AreaofCap(np.deg2rad(50),1))
         dis_between_user.append(dis)
+    area_all_video[k] = np.array(area_between_user)
+    dis_all_video[k] = np.array(dis_between_user)
 
-    all_video_area[k] = np.array(area_between_user)
-    all_video_dis[k] = np.array(dis_between_user)
 
-
-for k in viewers:
-    area_seq = all_video_area[k]
-    dis_seq = all_video_dis[k]
+for k in result:
+    area_seq = area_all_video[k]
+    dis_seq = dis_all_video[k]
     df = pd.DataFrame({'x':area_seq,'y':dis_seq})
-
-
     print(df.x.corr(df.y))
 
 
@@ -147,8 +151,6 @@ for k in viewers:
 # ax1 = fig.add_subplot(111)
 # ax2 = ax1.twinx()
 
-# print(area_between_user)
-# print(dis_between_user)
 # ax1.plot(x,area_between_user,'g-',label='area overlap')
 # ax2.plot(x,dis_between_user,'r--',label='distance')
 
@@ -157,7 +159,7 @@ for k in viewers:
 # ax2.set_ylabel('distance')
 
 # ax1.set_ylim(0,1)
-# ax2.set_ylim(0.50,0)
+# ax2.set_ylim(0.25,0)
 # fig.legend(loc='upper right',bbox_to_anchor=(1,1),bbox_transform=ax1.transAxes)
 # plt.grid(1)
 # plt.show()
