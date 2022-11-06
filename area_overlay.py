@@ -91,7 +91,8 @@ endtime = 70
 
 directoryNames = os.listdir(path)
 
-videos = [12,14,29,20]
+videos = [f for f in range(1,31) if(f<15 or f >16)]
+print(videos)
 
 result = dict()
 
@@ -122,7 +123,7 @@ for k in result:
     user1 = 0
     area_between_user = []
     dis_between_user = []
-    for user2 in range(1,30):
+    for user2 in range(1,viewer.shape[0]):
         vp1 = viewer[user1,5:8]
         vp2 = viewer[user2,5:8]
         theta = cal_angle(vp1,vp2)
