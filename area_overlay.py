@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 from torch import view_as_real
 import math
 
+plt.rcParams['font.sans-serif']=['SimHei'] #用来正常显示中文标签
+plt.rcParams['axes.unicode_minus'] = False #用来正常显示负号
 
 # Here is our main process for computing the area of 
 # intersecting spherical caps. a1 and a2 are the straight line
@@ -18,19 +20,10 @@ def AreaOfCapsIntersection(r, theta):
     a = np.deg2rad(60)       #50 degree fov for calculate
     b = np.deg2rad(60)       #50 degree fov for calculate
     c = theta
+    if (a+b)<c:
+        return 0
     s = (a + b + c) / 2
 
-    if (np.sin(s - a) * np.sin(s - b) * np.sin(s - c) / (np.sin(s))) < 0:
-        print(a)
-        print(b)
-        print(c)
-        print(s)
-
-        print(np.sin(s - a))
-        print(np.sin(s - b))
-        print(np.sin(s - c))
-        print(np.sin(s))
-        print('-----------------')
     k = np.sqrt((np.sin(s - a) * np.sin(s - b) * np.sin(s - c) / (np.sin(s))))
     A = 2 * np.arctan(k / np.sin(s - a))
     B = 2 * np.arctan(k / np.sin(s - b))
@@ -92,58 +85,103 @@ endtime = 70
 directoryNames = os.listdir(path)
 
 videos = [f for f in range(1,31) if(f<15 or f >16)]
-print(videos)
+
+fps = [25,29,29,29,30,29,25,29,29,29,24,30,29,29,-1,-1,30,29,29,29,29,29,29,29,25,29,30,29,25,29]
+
 
 result = dict()
 
-idx = 0
+
 for vid in videos:
+
     viewer = []
-    for f in directoryNames:
+    for f in directoryNames: #遍历所有的用户
+        idx = 0
         file = os.path.join(path,f,f'{f}_{vid}.csv')
         if(os.path.isfile(file)==False):
             continue
         data = np.loadtxt(file,delimiter=',')
         i = 0
-        while(data[i,0]<1/29*20):  #No.20 frame
-            i+=1
-        viewer.append(data[i,:])
-        idx = idx+1
+        for j in range(1,fps[vid-1]*60,fps[vid-1]):
+            # print(vid)
+
+            while(i< data.shape[0] and data[i,0]<(1/fps[vid-1]*j)): 
+                i+=1
+            # print(data[i,0])/
+            viewer.append(data[i,:])
+            idx = idx+1
+        # print(idx) 
     viewer = np.array(viewer)
+    # print(viewer.shape)
     result[f'{vid}'] = viewer
 
 area_all_video = dict()
 dis_all_video = dict()    
 
-for k in result:
-    viewer = result[k]
-    print(viewer.shape)
 
+for k in result:
+
+    viewer = result[k]
 
     user1 = 0
-    area_between_user = []
-    dis_between_user = []
-    for user2 in range(1,viewer.shape[0]):
-        vp1 = viewer[user1,5:8]
-        vp2 = viewer[user2,5:8]
-        theta = cal_angle(vp1,vp2)
-        area = AreaOfCapsIntersection(1,abs(theta))  # intersection area
-        [lat1,lon1,r] = vec2Ang(vp1)
-        [lat2,lon2,r] = vec2Ang(vp2)
+    area_between_user = dict()
+    dis_between_user = dict()
+    if int(k) == 26:
+        user_num = 29
+    else:
+        user_num = 30
+ 
+    for frame in range(60):
+        vp1 = viewer[0*60+frame,5:8]
+        temp_area = []
+        temp_dis = []
+        for user2 in range(1,user_num):
 
-        dis = haversine(lat1,lon1,lat2,lon2)
+            vp2 = viewer[user2*60+frame,5:8]
 
-        area_between_user.append(area/AreaofCap(np.deg2rad(50),1))
-        dis_between_user.append(dis)
-    area_all_video[k] = np.array(area_between_user)
-    dis_all_video[k] = np.array(dis_between_user)
+            theta = cal_angle(vp1,vp2)
+            print(np.rad2deg(theta))
+            area = AreaOfCapsIntersection(1,abs(theta))  # intersection area
+            [lat1,lon1,r] = vec2Ang(vp1)
+            [lat2,lon2,r] = vec2Ang(vp2)
 
+            dis = haversine(lat1,lon1,lat2,lon2)
+
+            temp_area.append(area/AreaofCap(np.deg2rad(60),1))
+            temp_dis.append(dis)
+        area_between_user[f'frame-{frame}'] = np.array(temp_area)   # 用户60帧视频上的数据点
+        dis_between_user[f'frame-{frame}'] = np.array(temp_dis)
+
+    area_all_video[k] = area_between_user
+    dis_all_video[k] = dis_between_user
+
+corr_video = dict()
 
 for k in result:
-    area_seq = area_all_video[k]
+    area_seq = area_all_video[k]  
     dis_seq = dis_all_video[k]
-    df = pd.DataFrame({'x':area_seq,'y':dis_seq})
-    print(df.x.corr(df.y))
+    res_corr = []
+    for frame in area_seq:
+        area_statistic = area_seq[frame]
+        dis_statistic = dis_seq[frame]
+
+    
+        df = pd.DataFrame({'x':area_statistic,'y':dis_statistic},dtype=float)
+        res_corr.append(df.x.corr(df.y))
+    corr_video[k] = res_corr
+
+for k in corr_video:
+    plt.figure()
+    x = [i for i in range(60)]
+    y = corr_video[k]
+    plt.bar(x,y,width=0.8,edgecolor='black',color='lightskyblue')
+    plt.axhline(y=-0.9,color='red',ls='--',lw=2)
+    plt.xlabel('帧数',fontsize=12)
+    plt.ylabel('相关系数')
+    plt.title(f'video-{int(k)}')
+    plt.savefig(f'./figures/{k}.png')
+    plt.close()
+
 
 
 
